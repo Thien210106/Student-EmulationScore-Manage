@@ -1,0 +1,59 @@
+{
+  "name": "class-point",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "npm run build && node dist/main.js",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed",
+    "prisma:import-criteria": "tsx prisma/import-criteria.ts",
+    "prisma:criteria-template": "tsx prisma/create-criteria-template.ts",
+    "test:criteria-import": "tsx --test prisma/import-criteria.test.ts",
+    "test:auth": "tsx --test src/modules/auth/auth.service.spec.ts src/common/guards/classroom-roles.guard.spec.ts",
+    "test:phase4": "tsx --test src/modules/points/points.service.spec.ts src/modules/weeks/weeks.service.spec.ts",
+    "test:phase5": "tsx --test src/modules/reports/reports.service.spec.ts src/modules/classifications/classifications.service.spec.ts",
+    "test:academic-years": "tsx --test src/modules/academic-years/academic-years.service.spec.ts",
+    "test:classroom-imports": "tsx --test src/modules/classroom-imports/classroom-imports.service.spec.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.10",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.2.10",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.2.10",
+    "@nestjs/swagger": "^11.2.2",
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/node": "^26.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.0"
+    },
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

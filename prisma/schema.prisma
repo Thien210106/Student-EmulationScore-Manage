@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClassRole {
+  HOMEROOM_TEACHER
+  TEAM_LEADER
+  STUDENT
+}
+
+enum RankingMode {
+  TOTAL_SCORE
+  AVERAGE_SCORE
+}
+
+enum CriterionType {
+  BONUS
+  PENALTY
+}
+
+enum PointType {
+  BONUS
+  PENALTY
+}
+
+enum PointStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum ClassificationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id             String            @id @default(uuid()) @db.Uuid
+  username       String            @unique @db.VarChar(50)
+  email          String            @unique @db.VarChar(254)
+  passwordHash   String            @db.VarChar(255)
+  fullName       String            @db.VarChar(150)
+  avatarUrl      String?           @db.VarChar(2048)
+  phone          String?           @db.VarChar(30)
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(6)
+  memberships    ClassMembership[]
+  studentProfile Student?
+  createdPoints  PointRecord[]     @relation("PointCreatedBy")
+  adjustments    PointAdjustment[] @relation("PointAdjustedBy")
+  authSessions   AuthSession[]
+
+  @@index([isActive])
+}
+
+model AcademicYear {
+  id         String      @id @default(uuid()) @db.Uuid
+  name       String      @unique @db.VarChar(30)
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  isActive   Boolean     @default(false)
+  classrooms Classroom[]
+
+  @@index([isActive])
+}
+
+model Classroom {
+  id              String               @id @default(uuid()) @db.Uuid
+  name            String               @db.VarChar(100)
+  code            String               @db.VarChar(30)
+  academicYearId  String               @db.Uuid
+  rankingMode     RankingMode          @default(TOTAL_SCORE)
+  isActive        Boolean              @default(true)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(6)
+  academicYear    AcademicYear         @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  memberships     ClassMembership[]
+  students        ClassStudent[]
+  teams           Team[]
+  criteria        Criterion[]
+  weeks           CompetitionWeek[]
+  classifications ClassificationRule[]
+
+  @@unique([academicYearId, code])
+  @@index([academicYearId])
+}
+
+model ClassMembership {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  classroomId String    @db.Uuid
+  role        ClassRole
+  isActive    Boolean   @default(true)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, classroomId])
+  @@index([classroomId, role, isActive])
+}
+
+model Student {
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @unique @db.Uuid
+  studentCode  String         @unique @db.VarChar(40)
+  fullName     String         @db.VarChar(150)
+  dateOfBirth  DateTime?      @db.Date
+  gender       String?        @db.VarChar(30)
+  phone        String?        @db.VarChar(30)
+  address      String?        @db.VarChar(500)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  classRecords ClassStudent[]
+}
+
+model ClassStudent {
+  id                String              @id @default(uuid()) @db.Uuid
+  studentId         String              @db.Uuid
+  classroomId       String              @db.Uuid
+  joinedAt          DateTime            @default(now()) @db.Timestamptz(6)
+  isActive          Boolean             @default(true)
+  student           Student             @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classroom         Classroom           @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+  teamHistory       TeamMembership[]
+  leadershipHistory TeamLeaderHistory[]
+  pointRecords      PointRecord[]
+
+  @@unique([studentId, classroomId])
+  @@unique([id, classroomId])
+  @@index([classroomId, isActive])
+}
+
+model Team {
+  id            String              @id @default(uuid()) @db.Uuid
+  name          String              @db.VarChar(100)
+  code          String              @db.VarChar(30)
+  classroomId   String              @db.Uuid
+  classroom     Classroom           @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+  memberships   TeamMembership[]
+  leaderHistory TeamLeaderHistory[]
+
+  @@unique([classroomId, code])
+  @@unique([id, classroomId])
+  @@index([classroomId])
+}
+
+model TeamMembership {
+  id             String       @id @default(uuid()) @db.Uuid
+  teamId         String       @db.Uuid
+  classStudentId String       @db.Uuid
+  joinedAt       DateTime     @default(now()) @db.Timestamptz(6)
+  leftAt         DateTime?    @db.Timestamptz(6)
+  isLeader       Boolean      @default(false)
+  team           Team         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  classStudent   ClassStudent @relation(fields: [classStudentId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId, classStudentId, joinedAt])
+  @@index([classStudentId, leftAt])
+  @@index([teamId, leftAt, isLeader])
+}
+
+model TeamLeaderHistory {
+  id             String       @id @default(uuid()) @db.Uuid
+  teamId         String       @db.Uuid
+  classStudentId String       @db.Uuid
+  startedAt      DateTime     @default(now()) @db.Timestamptz(6)
+  endedAt        DateTime?    @db.Timestamptz(6)
+  team           Team         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  classStudent   ClassStudent @relation(fields: [classStudentId], references: [id], onDelete: Restrict)
+
+  @@index([classStudentId, startedAt])
+  @@index([teamId, startedAt])
+}
+
+model AuthSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Criterion {
+  id           String        @id @default(uuid()) @db.Uuid
+  classroomId  String        @db.Uuid
+  code         String        @db.VarChar(40)
+  name         String        @db.VarChar(150)
+  description  String?       @db.Text
+  type         CriterionType
+  defaultPoint Decimal       @db.Decimal(8, 2)
+  maxPoint     Decimal?      @db.Decimal(8, 2)
+  minPoint     Decimal?      @db.Decimal(8, 2)
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  classroom    Classroom     @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+  pointRecords PointRecord[]
+
+  @@unique([classroomId, code])
+  @@unique([id, classroomId])
+  @@index([classroomId, isActive, sortOrder])
+}
+
+model CompetitionWeek {
+  id           String        @id @default(uuid()) @db.Uuid
+  classroomId  String        @db.Uuid
+  name         String        @db.VarChar(100)
+  startDate    DateTime      @db.Date
+  endDate      DateTime      @db.Date
+  isClosed     Boolean       @default(false)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+  classroom    Classroom     @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+  pointRecords PointRecord[]
+
+  @@unique([classroomId, startDate])
+  @@unique([classroomId, endDate])
+  @@unique([id, classroomId])
+  @@index([classroomId, startDate, endDate])
+}
+
+model PointRecord {
+  id             String            @id @default(uuid()) @db.Uuid
+  classStudentId String            @db.Uuid
+  criterionId    String            @db.Uuid
+  weekId         String            @db.Uuid
+  classroomId    String            @db.Uuid
+  createdById    String            @db.Uuid
+  type           PointType
+  point          Decimal           @db.Decimal(8, 2)
+  description    String?           @db.Text
+  status         PointStatus       @default(ACTIVE)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(6)
+  classStudent   ClassStudent      @relation(fields: [classStudentId, classroomId], references: [id, classroomId], onDelete: Restrict)
+  criterion      Criterion         @relation(fields: [criterionId, classroomId], references: [id, classroomId], onDelete: Restrict)
+  week           CompetitionWeek   @relation(fields: [weekId, classroomId], references: [id, classroomId], onDelete: Restrict)
+  createdBy      User              @relation("PointCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  adjustments    PointAdjustment[]
+
+  @@index([weekId, status])
+  @@index([classStudentId, createdAt])
+  @@index([criterionId])
+  @@index([createdById])
+}
+
+model PointAdjustment {
+  id            String      @id @default(uuid()) @db.Uuid
+  pointRecordId String      @db.Uuid
+  adjustedById  String      @db.Uuid
+  oldPoint      Decimal     @db.Decimal(8, 2)
+  newPoint      Decimal     @db.Decimal(8, 2)
+  reason        String      @db.VarChar(1000)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(6)
+  pointRecord   PointRecord @relation(fields: [pointRecordId], references: [id], onDelete: Restrict)
+  adjustedBy    User        @relation("PointAdjustedBy", fields: [adjustedById], references: [id], onDelete: Restrict)
+
+  @@index([pointRecordId, createdAt])
+  @@index([adjustedById])
+}
+
+model ClassificationRule {
+  id          String               @id @default(uuid()) @db.Uuid
+  classroomId String               @db.Uuid
+  name        String               @db.VarChar(100)
+  minScore    Decimal              @db.Decimal(8, 2)
+  maxScore    Decimal?             @db.Decimal(8, 2)
+  description String?              @db.Text
+  status      ClassificationStatus @default(ACTIVE)
+  sortOrder   Int                  @default(0)
+  classroom   Classroom            @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+
+  @@unique([classroomId, name])
+  @@index([classroomId, status, sortOrder])
+}
