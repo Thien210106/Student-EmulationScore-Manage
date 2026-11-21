@@ -1,5 +1,7 @@
 # Deploy CLASS POINT to Google Cloud Run
 
+> This path requires a valid Google Cloud Billing account. If you cannot set one up, use [DEPLOY_RENDER.md](./DEPLOY_RENDER.md) for the Render Free deployment path instead.
+
 This setup runs the Vite frontend and NestJS API in one Cloud Run service. The
 frontend calls `/api` on the same origin. PostgreSQL remains on the existing Neon
 project; do not create a temporary Render database for production data.
