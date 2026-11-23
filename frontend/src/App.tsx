@@ -65,6 +65,55 @@ const navigation: Array<{ id: View; label: string; icon: typeof LayoutDashboard 
   { id: 'imports', label: 'Nhập từ Excel', icon: FileSpreadsheet },
 ];
 
+interface GoogleCredentialResponse {
+  credential: string;
+}
+
+interface GoogleIdentityApi {
+  accounts: {
+    id: {
+      initialize: (options: {
+        client_id: string;
+        nonce: string;
+        callback: (response: GoogleCredentialResponse) => void;
+      }) => void;
+      renderButton: (
+        element: HTMLElement,
+        options: {
+          type: 'standard';
+          theme: 'outline';
+          size: 'large';
+          text: 'continue_with';
+          shape: 'rectangular';
+          width: number;
+          logo_alignment: 'left';
+        },
+      ) => void;
+    };
+  };
+}
+
+let googleIdentityScript: Promise<void> | null = null;
+
+function loadGoogleIdentityScript(): Promise<void> {
+  if ((window as Window & { google?: GoogleIdentityApi }).google) return Promise.resolve();
+  if (googleIdentityScript) return googleIdentityScript;
+
+  googleIdentityScript = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => {
+      googleIdentityScript = null;
+      reject(new Error('Không tải được dịch vụ đăng nhập Google.'));
+    };
+    document.head.appendChild(script);
+  });
+  return googleIdentityScript;
+}
+
 const money = (value: string | number | null | undefined) =>
   Number(value ?? 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 
@@ -258,6 +307,21 @@ function App() {
     }
   };
 
+  const handleGoogleAuth = async (credential: string, nonce: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await api.googleLogin(credential, nonce);
+      saveTokens(result.accessToken, result.refreshToken);
+      setUser(result.user);
+      await bootstrap();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Đăng nhập Google không thành công.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const signOut = async () => {
     try {
       await api.logout();
@@ -314,7 +378,7 @@ function App() {
     return <LoadingScreen label={loadState === 'checking' ? 'Đang kiểm tra phiên đăng nhập' : 'Đang đồng bộ dữ liệu lớp học'} />;
   }
   if (loadState === 'signed-out') {
-    return <AuthScreen onSubmit={handleAuth} busy={busy} error={error} />;
+    return <AuthScreen onSubmit={handleAuth} onGoogleLogin={handleGoogleAuth} busy={busy} error={error} />;
   }
   if (loadState === 'failed') {
     return (
@@ -1326,12 +1390,76 @@ function LoadingScreen({ label }: { label: string }) {
   return <div className="loading-screen"><div className="loading-brand"><div className="brand-mark"><GraduationCap size={23} /></div><strong>class point</strong></div><LoaderCircle className="loading-spinner" size={23} /><span>{label}</span></div>;
 }
 
-function AuthScreen({ onSubmit, busy, error }: { onSubmit: (identifier: string, password: string, mode: 'login' | 'register', extra?: { email: string; fullName: string }) => Promise<void>; busy: boolean; error: string }) {
+function AuthScreen({ onSubmit, onGoogleLogin, busy, error }: { onSubmit: (identifier: string, password: string, mode: 'login' | 'register', extra?: { email: string; fullName: string }) => Promise<void>; onGoogleLogin: (credential: string, nonce: string) => Promise<void>; busy: boolean; error: string }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [googleLoadError, setGoogleLoadError] = useState('');
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleLoginRef = useRef(onGoogleLogin);
+
+  useEffect(() => {
+    googleLoginRef.current = onGoogleLogin;
+  }, [onGoogleLogin]);
+
+  useEffect(() => {
+    let active = true;
+    void api.googleConfig()
+      .then(({ clientId }) => {
+        if (active) setGoogleClientId(clientId);
+      })
+      .catch(() => {
+        // Keep password sign-in available while the API or OAuth configuration is unavailable.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'login' || !googleClientId || !googleButtonRef.current) return;
+    let active = true;
+    const nonce = window.crypto.randomUUID();
+
+    void loadGoogleIdentityScript()
+      .then(() => {
+        if (!active || !googleButtonRef.current) return;
+        const google = (window as Window & { google?: GoogleIdentityApi }).google;
+        if (!google) throw new Error('Không tải được dịch vụ đăng nhập Google.');
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          nonce,
+          callback: ({ credential }) => {
+            if (active && credential) void googleLoginRef.current(credential, nonce);
+          },
+        });
+        google.accounts.id.renderButton(googleButtonRef.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          width: Math.min(320, googleButtonRef.current.clientWidth || 320),
+          logo_alignment: 'left',
+        });
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setGoogleLoadError(
+            reason instanceof Error ? reason.message : 'Không tải được dịch vụ đăng nhập Google.',
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+      if (googleButtonRef.current) googleButtonRef.current.innerHTML = '';
+    };
+  }, [googleClientId, mode]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void onSubmit(identifier, password, mode, { email, fullName });
@@ -1358,6 +1486,11 @@ function AuthScreen({ onSubmit, busy, error }: { onSubmit: (identifier: string, 
         {error && <div className="form-error" role="alert"><ShieldCheck size={16} />{error}</div>}
         <button className="button button-primary auth-submit" disabled={busy}>{busy ? <LoaderCircle className="spin" size={17} /> : mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}{!busy && <ArrowRight size={17} />}</button>
       </form>
+      {mode === 'login' && googleClientId && <>
+        <div className="auth-divider"><span>hoặc tiếp tục với</span></div>
+        <div className="google-signin-button" ref={googleButtonRef} />
+        {googleLoadError && <p className="google-signin-error" role="status">{googleLoadError}</p>}
+      </>}
       <p className="auth-switch">{mode === 'login' ? 'Bạn chưa có tài khoản?' : 'Đã có tài khoản?'} <button onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Đăng ký ngay' : 'Đăng nhập'}</button></p>
       <div className="auth-trust"><ShieldCheck size={16} /><span>Thông tin lớp học được bảo vệ và chỉ chia sẻ đúng phạm vi.</span></div>
       <span className="auth-copyright">© 2026 CLASS POINT · MỌI NỖ LỰC ĐỀU CÓ GIÁ TRỊ</span>

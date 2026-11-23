@@ -51,3 +51,15 @@ file after importing if those students need to sign in.
 cd frontend
 npm run build
 ```
+
+## Cài CLASS POINT như app trên điện thoại
+
+Frontend có manifest và service worker để trình duyệt cài CLASS POINT lên màn hình
+chính và mở ở chế độ toàn màn hình. Production cần được phục vụ qua HTTPS (localhost
+được trình duyệt xem là môi trường an toàn). Trên Android, mở URL của CLASS POINT
+bằng Chrome rồi chọn **Cài đặt ứng dụng** hoặc **Thêm vào màn hình chính**. Trên iPhone,
+mở bằng Safari, chạm **Chia sẻ** rồi chọn **Thêm vào Màn hình chính**.
+
+Service worker chỉ lưu HTML, JavaScript, CSS và biểu tượng của ứng dụng để mở lại
+phần vỏ giao diện khi offline. Các API, thông tin đăng nhập và dữ liệu lớp không được
+lưu offline; đăng nhập và đồng bộ vẫn cần backend cùng PostgreSQL đang trực tuyến.

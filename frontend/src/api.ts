@@ -262,6 +262,8 @@ async function request<T>(
     retry &&
     path !== '/auth/login' &&
     path !== '/auth/register' &&
+    path !== '/auth/google' &&
+    path !== '/auth/google/config' &&
     path !== '/auth/refresh'
   ) {
     const newAccessToken = await rotateRefreshToken();
@@ -289,6 +291,9 @@ function jsonBody(value: unknown): RequestInit {
 }
 
 export const api = {
+  googleConfig: () => request<{ clientId: string | null }>('/auth/google/config'),
+  googleLogin: (credential: string, nonce: string) =>
+    request<AuthResponse>('/auth/google', jsonBody({ credential, nonce })),
   login: (usernameOrEmail: string, password: string) =>
     request<AuthResponse>('/auth/login', jsonBody({ usernameOrEmail, password })),
   register: (username: string, email: string, fullName: string, password: string) =>

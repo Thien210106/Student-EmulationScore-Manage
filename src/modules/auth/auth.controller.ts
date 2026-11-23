@@ -20,11 +20,25 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Get('google/config')
+  @ApiOkResponse({ description: 'Public Google Identity Services client configuration' })
+  googleConfig() {
+    return this.auth.googleConfig();
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'Google ID token verified; CLASS POINT session created' })
+  googleLogin(@Body() dto: GoogleLoginDto) {
+    return this.auth.googleLogin(dto.credential, dto.nonce);
+  }
 
   @Post('register')
   @ApiCreatedResponse({ description: 'Account created; no classroom role is assigned' })

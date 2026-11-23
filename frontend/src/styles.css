@@ -1,7 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-
 :root {
-  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  font-family: 'Times New Roman', Times, serif;
   color: #23332d;
   background: #f5f6f2;
   font-synthesis: none;
@@ -379,6 +377,10 @@ h1, h2, h3, p { margin-top: 0; }
 .auth-form-wrap h2 { margin: 10px 0 5px; color: #2b3e32; font-family: Manrope,sans-serif; font-size: 27px; letter-spacing: -1px; }
 .auth-subtitle { margin: 0 0 24px; color: #8f9a92; font-size: 11px; }
 .auth-form { display: grid; gap: 2px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin-top: 16px; color: #a0aaa2; font-size: 9px; }
+.auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: #e8ede8; }
+.google-signin-button { display: flex; justify-content: center; min-height: 40px; margin-top: 12px; }
+.google-signin-error { margin: 6px 0 0; color: #a25950; font-size: 10px; text-align: center; }
 .auth-form label { gap: 8px; margin-bottom: 12px; color: #56665b; font-size: 10px; }
 .auth-form input { min-height: 42px; background: #fff; font-size: 11px; }
 .auth-form input::placeholder { color: #b3bcb5; }
@@ -644,4 +646,10 @@ body { color: var(--ink); background: var(--canvas); }
   .metric-value { font-size: 22px; }
   .button-primary { color: #14372f; }
   .auth-panel { background: #f9fafb; }
+}
+
+*,
+*::before,
+*::after {
+  font-family: 'Times New Roman', Times, serif !important;
 }

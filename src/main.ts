@@ -62,7 +62,8 @@ async function bootstrap(): Promise<void> {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('PORT must be an integer between 1 and 65535');
   }
-  await app.listen(port, '0.0.0.0');
+  const host = config.get<string>('HOST', '0.0.0.0');
+  await app.listen(port, host);
 }
 
 void bootstrap();

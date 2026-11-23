@@ -49,7 +49,10 @@ git status --short
    - `DATABASE_URL`: connection string pooled của Neon.
    - `JWT_ACCESS_SECRET`: secret hiện tại trong `.env`.
    - `JWT_REFRESH_SECRET`: secret hiện tại trong `.env`.
+   - `GOOGLE_CLIENT_ID`: OAuth 2.0 Client ID loại Web application từ Google Cloud Console (chỉ là client ID công khai; không cần đưa client secret vào ứng dụng).
 4. Tạo Blueprint và chờ Docker build/deploy hoàn tất.
+
+Để bật đăng nhập Google, tạo OAuth Client ID cho ứng dụng Web và thêm các JavaScript origin tương ứng, ví dụ `http://localhost:5173` khi chạy local và URL HTTPS của service khi public. Đặt cùng `GOOGLE_CLIENT_ID` vào `.env` local và Render. Backend xác minh chữ ký ID token của Google, audience, nonce và email đã xác minh trước khi tạo phiên CLASS POINT. Nếu biến này chưa được cấu hình, nút Google sẽ không xuất hiện.
 
 Không gửi các giá trị trên trong chat, commit vào repository, hoặc thêm vào Dockerfile.
 
